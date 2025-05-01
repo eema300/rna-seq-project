@@ -1,0 +1,95 @@
+---
+title: "Differential Expression for Control vs Heat Shock HeLa cells"
+output: html_notebook
+---
+
+### Some notation notes:
+* cnt -> control (37ºC)
+* OR -> heat shock (42ºC) invitro
+
+*heat shock was consistent among tissues*
+
+### DNA to protein:
+ATG -> AUG -> M
+
+*multiple codons can make the same amino acid*
+
+*what overexpress in response to heat shock*
+
+* VST normalize the counts (why VST?)
+* need to account for tissues that have differing amounts of high DEGs
+* bar graph for DEG big picture among tissues
+* ppi
+* this is causal analysis
+* volcanao plot (higher genes on y axis are more DE)
+* why do we only care about the overexpressed genes?
+* promoter and protein bind and make transcription happen?
+* ODE model of cellular stress response
+
+## install required packages
+```{r}
+if (!requireNamespace("BiocManager", quietly = TRUE))
+install.packages("BiocManager")
+BiocManager::install(c("DESeq2", "topGO", "fgsea", "clusterProfiler", "org.Hs.eg.db"))
+install.packages(c("ggplot2", "pheatmap", "RColorBrewer", "EnhancedVolcano", "tidyverse"))
+```
+
+## libraries
+```{r}
+library("DESeq2")
+library("tidyverse")
+library("dplyr")
+```
+
+
+## read the csv to get count dataframe
+```{r}
+filename <- "/Users/emmagomez/code/EAGER/rna-seq-r/counts/read_counts.csv"
+counts <- read.csv(filename)
+```
+
+## show columns
+```{r}
+colnames(counts)
+```
+
+## drop irrelevant columns
+```{r}
+rownames(counts) <- counts$gene_id
+counts <- dplyr::select(counts, "HeLa1cnt", "HeLa2cnt", "HeLa3cnt",
+                        "HeLa1_0R", "HeLa2_0R", "HeLa3_0R")
+head(counts)
+```
+
+
+## change counts to integers
+```{r}
+to_mutate <- colnames(counts)[1:length(colnames(counts))]
+counts <- counts %>%
+  mutate(across(all_of(to_mutate), as.integer))
+```
+
+## metadata
+```{r}
+condition <- factor(c(rep("control", 3), rep("heat_shock", 3)))
+col_data <- data.frame(
+  row.names = colnames(counts),
+  condition = condition
+)
+```
+
+
+## construct DESeq2 object
+```{r}
+dds <- DESeqDataSetFromMatrix(countData = counts,
+                              colData = col_data,
+                              design = ~condition)
+```
+
+
+## view results
+```{r}
+dds <- DESeq(dds)
+res <- results(dds)
+```
+
